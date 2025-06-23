@@ -1,0 +1,40 @@
+name: Deploy Apache Web Server
+
+on:
+  push:
+    branches:
+      - "main"
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4 # Consider pinning to a specific SHA for security
+
+      # Caching apt packages for improved performance
+      - name: Cache apt packages
+        uses: actions/cache@v4
+        with:
+          path: /var/cache/apt/archives
+          key: ${{ runner.os }}-apt-${{ hashFiles('**/apache-deploy.yml') }}
+
+      - name: Install Apache
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y apache2
+
+      - name: Copy site files to Apache web root
+        run: |
+          sudo rsync -av --delete ./site/ /var/www/html/
+          sudo chown -R www-data:www-data /var/www/html/
+
+      - name: Restart Apache
+        run: |
+          set -e
+          sudo systemctl restart apache2
+          sudo systemctl status apache2 --no-pager
+
+      - name: Verify Apache is running
+        run: sudo apache2ctl status || sudo systemctl status apache2 --no-pager
